@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Shisha Master: Çanaq & Kömür Oyunu</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://telegram.org/js/games.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    body {
+      background: #08090e;
+      color: #f8fafc;
+      overflow: hidden;
+      height: 100dvh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+      touch-action: none;
+    }
+    #hud {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .hud-box {
+      background: rgba(17, 20, 32, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(10px);
+      padding: 8px 12px;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    #orderBanner {
+      position: fixed;
+      top: 62px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(16, 185, 129, 0.16));
+      border: 1px solid rgba(245, 158, 11, 0.45);
+      backdrop-filter: blur(12px);
+      padding: 8px 14px;
+      border-radius: 16px;
+      text-align: center;
+      max-width: 94vw;
+      pointer-events: none;
+    }
+    #orderBanner small {
+      display: block;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #fbbf24;
+      margin-bottom: 2px;
+    }
+    #orderTargets {
+      font-size: 12.5px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.35;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+    #overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      background: rgba(8, 9, 14, 0.92);
+      backdrop-filter: blur(14px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .badge {
+      background: rgba(245, 158, 11, 0.18);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 900;
+      background: linear-gradient(90deg, #fde68a, #f59e0b, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 10px;
+    }
+    .desc {
+      font-size: 14px;
+      color: #cbd5e1;
+      line-height: 1.5;
+      max-width: 340px;
+      margin-bottom: 18px;
+    }
+    .rules {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      padding: 14px 16px;
+      text-align: left;
+      font-size: 13px;
+      color: #e2e8f0;
+      max-width: 340px;
+      width: 100%;
+      margin-bottom: 22px;
+      line-height: 1.65;
+    }
+    .btn {
+      background: linear-gradient(90deg, #f59e0b, #ea580c);
+      color: #08090e;
+      border: none;
+      padding: 15px 34px;
+      border-radius: 16px;
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 8px 25px rgba(245, 158, 11, 0.35);
+      transition: transform 0.15s;
+      position: relative;
+      z-index: 35;
+    }
+    .btn:active {
+      transform: scale(0.96);
+    }
+    .btn-share {
+      margin-top: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      padding: 11px 24px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      position: relative;
+      z-index: 35;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="hud">
+    <div class="hud-box">🏆 Xal: <span id="scoreVal" style="color:#fbbf24;">0</span></div>
+    <div class="hud-box">🔥 Combo: <span id="comboVal" style="color:#34d399;">x1</span></div>
+    <div class="hud-box" id="livesVal">❤️❤️❤️</div>
+  </div>
+
+  <div id="orderBanner">
+    <small>Müştərinin Sifarişi</small>
+    <div id="orderTargets">Yüklənir...</div>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="overlay">
+    <span class="badge">SHISHA MIX BOT • ARCADE</span>
+    <h1 id="overlayTitle">Qəlyançı Ustası</h1>
+    <p class="desc" id="overlayDesc">Göydən düşən doğru tütün dadlarını çanağa yığ, yanan közlərdən yayın və müştəri sifarişlərini tamamla!</p>
+    <div class="rules" id="rulesBox">
+      <div>🍓 <b>Sifarişdəki dadları tut:</b> +25 Xal</div>
+      <div>✨ <b>Sifarişi tam yığ (3 dad):</b> +100 Bonus Xal</div>
+      <div>🔥 <b>Yanan kömürə toxunma:</b> 1 Can gedir!</div>
+      <div>👆 <b>İdarəetmə:</b> Barmağını ekranda sağa-sola sürüşdür</div>
+    </div>
+    <button type="button" class="btn" id="startBtn">💨 Oyuna Başla</button>
+    <button type="button" class="btn-share" id="shareBtn" style="display:none;">📤 Nəticəni Dostlarla Paylaş</button>
+  </div>
+
+  <script>
+    const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+    if (tg) {
+      try {
+        tg.ready();
+        tg.expand();
+      } catch (e) {}
+    }
+
+    function haptic(type = 'light') {
+      try {
+        if (!tg || !tg.HapticFeedback) return;
+        if (type === 'error' || type === 'success') tg.HapticFeedback.notificationOccurred(type);
+        else tg.HapticFeedback.impactOccurred(type);
+      } catch (e) {}
+    }
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let W = Math.max(320, window.innerWidth || document.documentElement.clientWidth || 390);
+    let H = Math.max(480, window.innerHeight || document.documentElement.clientHeight || 700);
+
+    const FLAVORS = [
+      { id: 'saftali', name: 'Şaftalı', emoji: '🍑', color: '#fb923c' },
+      { id: 'moruq', name: 'Buzlu Moruq', emoji: '🫐', color: '#f43f5e' },
+      { id: 'ciyelek', name: 'Çiyələk', emoji: '🍓', color: '#ef4444' },
+      { id: 'limon', name: 'Limon', emoji: '🍋', color: '#facc15' },
+      { id: 'nane', name: 'Sadə Nanə', emoji: '🌿', color: '#10b981' },
+      { id: 'nar', name: 'Nar', emoji: '🍒', color: '#e11d48' },
+      { id: 'ananas', name: 'Ananas', emoji: '🍍', color: '#fde047' },
+      { id: 'seyx', name: 'Şeyx', emoji: '👑', color: '#d97706' }
+    ];
+
+    let running = false;
+    let rafId = null;
+    let lastTime = 0;
+    let score = 0;
+    let bestScore = 0;
+    try {
+      bestScore = Number(localStorage.getItem('shisha_game_best') || 0);
+    } catch (e) {}
+    let combo = 1;
+    let lives = 3;
+    let items = [];
+    let particles = [];
+    let floatTexts = [];
+    let currentOrder = [];
+    let collectedOrder = [];
+    let spawnAccumulator = 0;
+    let speedMultiplier = 1;
+
+    const bowl = {
+      x: W / 2,
+      y: H - 90,
+      w: 108,
+      h: 44
+    };
+
+    function resizeCanvas() {
+      W = Math.max(320, window.innerWidth || document.documentElement.clientWidth || 390);
+      H = Math.max(480, window.innerHeight || document.documentElement.clientHeight || 700);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      bowl.y = H - 90;
+      bowl.x = Math.max(bowl.w / 2 + 12, Math.min(W - bowl.w / 2 - 12, bowl.x));
+    }
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function pickNewOrder() {
+      const shuffled = [...FLAVORS].sort(() => Math.random() - 0.5);
+      currentOrder = shuffled.slice(0, 3);
+      collectedOrder = [false, false, false];
+      renderOrderUI();
+    }
+
+    function renderOrderUI() {
+      const el = document.getElementById('orderTargets');
+      el.innerHTML = currentOrder.map((f, idx) => {
+        const done = collectedOrder[idx];
+        return `<span style="opacity:${done ? '0.45' : '1'}; text-decoration:${done ? 'line-through' : 'none'}; margin:0 4px; display:inline-block;">${f.emoji} ${f.name}</span>`;
+      }).join('•');
+    }
+
+    function updateHUD() {
+      document.getElementById('scoreVal').textContent = score;
+      document.getElementById('comboVal').textContent = 'x' + combo;
+      document.getElementById('livesVal').textContent = '❤️'.repeat(Math.max(0, lives)) + '🖤'.repeat(Math.max(0, 3 - lives));
+    }
+
+    function spawnItem() {
+      const isCoal = Math.random() < Math.min(0.32, 0.16 + score * 0.00015);
+      const x = 36 + Math.random() * Math.max(40, W - 72);
+      const vy = (175 + Math.random() * 125) * speedMultiplier;
+
+      if (isCoal) {
+        items.push({ type: 'coal', x, y: -30, r: 22, vy, emoji: '🔥', color: '#ef4444' });
+      } else {
+        const needed = currentOrder.filter((_, idx) => !collectedOrder[idx]);
+        let f;
+        if (needed.length > 0 && Math.random() < 0.55) {
+          f = needed[Math.floor(Math.random() * needed.length)];
+        } else {
+          f = FLAVORS[Math.floor(Math.random() * FLAVORS.length)];
+        }
+        items.push({
+          type: 'flavor',
+          flavor: f,
+          x,
+          y: -30,
+          r: 23,
+          vy,
+          emoji: f.emoji,
+          color: f.color
+        });
+      }
+    }
+
+    function addParticles(x, y, color, count = 14) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const spd = 80 + Math.random() * 210;
+        particles.push({
+          x, y,
+          vx: Math.cos(angle) * spd,
+          vy: Math.sin(angle) * spd,
+          life: 1,
+          color
+        });
+      }
+    }
+
+    function addFloatText(x, y, text, color) {
+      floatTexts.push({ x, y, text, color, life: 1 });
+    }
+
+    function startGame() {
+      resizeCanvas();
+      score = 0;
+      combo = 1;
+      lives = 3;
+      items = [];
+      particles = [];
+      floatTexts = [];
+      spawnAccumulator = 0.7;
+      speedMultiplier = 1;
+      bowl.x = W / 2;
+      bowl.y = H - 90;
+      pickNewOrder();
+      updateHUD();
+
+      document.getElementById('overlay').style.display = 'none';
+      running = true;
+      lastTime = performance.now();
+      haptic('medium');
+
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function endGame() {
+      running = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      haptic('error');
+      if (score > bestScore) {
+        bestScore = score;
+        try {
+          localStorage.setItem('shisha_game_best', bestScore);
+        } catch (e) {}
+      }
+
+      document.getElementById('overlayTitle').textContent = 'Oyun Bitdi!';
+      document.getElementById('overlayDesc').innerHTML = `Sənin nəticən: <b style="color:#fbbf24; font-size:20px;">${score} Xal</b><br>Ən yüksək rekord: <b>${bestScore} Xal</b>`;
+      document.getElementById('rulesBox').style.display = 'none';
+      document.getElementById('startBtn').textContent = '🔄 Yenidən Oyna';
+      document.getElementById('shareBtn').style.display = 'inline-block';
+      document.getElementById('overlay').style.display = 'flex';
+    }
+
+    function shareScore() {
+      try {
+        if (window.TelegramGameProxy && typeof window.TelegramGameProxy.shareScore === 'function') {
+          window.TelegramGameProxy.shareScore();
+          return;
+        }
+      } catch (e) {}
+
+      const msg = `💨 Shisha Master oyununda ${score} xal topladım! Sən də özünü sına 🔥`;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(msg).catch(() => {});
+      }
+      alert('Nəticə kopyalandı! Qrupa və ya dostuna göndərə bilərsən.');
+    }
+
+    function moveBowl(clientX) {
+      if (typeof clientX !== 'number' || Number.isNaN(clientX)) return;
+      bowl.x = Math.max(bowl.w / 2 + 12, Math.min(W - bowl.w / 2 - 12, clientX));
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+      if (!running) return;
+      moveBowl(e.clientX);
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (!running) return;
+      if (e.pointerType === 'mouse' && e.buttons === 0) return;
+      moveBowl(e.clientX);
+    });
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (!running || !e.touches || !e.touches[0]) return;
+      moveBowl(e.touches[0].clientX);
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (!running || !e.touches || !e.touches[0]) return;
+      moveBowl(e.touches[0].clientX);
+    }, { passive: true });
+
+    document.getElementById('startBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      startGame();
+    });
+
+    document.getElementById('shareBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      shareScore();
+    });
+
+    function drawBowl() {
+      ctx.save();
+      ctx.translate(bowl.x, bowl.y);
+
+      ctx.shadowColor = '#f59e0b';
+      ctx.shadowBlur = 18;
+
+      const grad = ctx.createLinearGradient(-bowl.w / 2, -bowl.h / 2, bowl.w / 2, bowl.h / 2);
+      grad.addColorStop(0, '#d97706');
+      grad.addColorStop(0.5, '#f59e0b');
+      grad.addColorStop(1, '#b45309');
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(-bowl.w / 2, -bowl.h / 2);
+      ctx.lineTo(bowl.w / 2, -bowl.h / 2);
+      ctx.lineTo(bowl.w * 0.32, bowl.h / 2);
+      ctx.lineTo(-bowl.w * 0.32, bowl.h / 2);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(-10, bowl.h / 2, 20, 24);
+
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#fde68a';
+      ctx.fillRect(-bowl.w / 2 - 3, -bowl.h / 2 - 4, bowl.w + 6, 6);
+
+      ctx.fillStyle = '#08090e';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ÇANAQ', 0, 2);
+
+      ctx.restore();
+    }
+
+    function loop(now) {
+      if (!running) return;
+
+      const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) / 1000));
+      lastTime = now;
+
+      ctx.clearRect(0, 0, W, H);
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < W; x += 45) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, H);
+        ctx.stroke();
+      }
+
+      speedMultiplier = 1 + Math.min(1.35, score / 900);
+      const spawnInterval = Math.max(0.42, 0.88 / speedMultiplier);
+      spawnAccumulator += dt;
+      if (spawnAccumulator >= spawnInterval) {
+        spawnItem();
+        spawnAccumulator = 0;
+      }
+
+      for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i];
+        it.y += it.vy * dt;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(it.x, it.y, it.r, 0, Math.PI * 2);
+        ctx.fillStyle = it.type === 'coal' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.08)';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = it.color;
+        ctx.stroke();
+
+        ctx.font = '24px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(it.emoji, it.x, it.y + 1);
+        ctx.restore();
+
+        const hitX = Math.abs(it.x - bowl.x) < (bowl.w / 2 + it.r * 0.7);
+        const hitY = Math.abs(it.y - bowl.y) < (bowl.h / 2 + it.r * 0.7);
+
+        if (hitX && hitY) {
+          if (it.type === 'coal') {
+            lives--;
+            combo = 1;
+            haptic('error');
+            addParticles(it.x, it.y, '#ef4444', 20);
+            addFloatText(it.x, it.y - 15, '-1 CAN 🔥', '#ef4444');
+            updateHUD();
+            items.splice(i, 1);
+            if (lives <= 0) {
+              endGame();
+              return;
+            }
+            continue;
+          } else {
+            const orderIdx = currentOrder.findIndex((o, idx) => o.id === it.flavor.id && !collectedOrder[idx]);
+            if (orderIdx !== -1) {
+              collectedOrder[orderIdx] = true;
+              const pts = 25 * combo;
+              score += pts;
+              combo = Math.min(5, combo + 1);
+              haptic('success');
+              addParticles(it.x, it.y, it.color, 18);
+              addFloatText(it.x, it.y - 15, `+${pts} (${it.flavor.name})`, '#34d399');
+              renderOrderUI();
+
+              if (collectedOrder.filter(Boolean).length === currentOrder.length) {
+                score += 100;
+                addFloatText(bowl.x, bowl.y - 45, '🎉 SİFARİŞ HAZIR! +100', '#fbbf24');
+                pickNewOrder();
+              }
+            } else {
+              score += 10;
+              haptic('light');
+              addParticles(it.x, it.y, it.color, 10);
+              addFloatText(it.x, it.y - 15, '+10', '#cbd5e1');
+            }
+            updateHUD();
+            items.splice(i, 1);
+            continue;
+          }
+        }
+
+        if (it.y > H + 40) {
+          items.splice(i, 1);
+        }
+      }
+
+      drawBowl();
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt * 2.1;
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      for (let i = floatTexts.length - 1; i >= 0; i--) {
+        const ft = floatTexts[i];
+        ft.y -= 75 * dt;
+        ft.life -= dt * 1.5;
+        if (ft.life <= 0) {
+          floatTexts.splice(i, 1);
+          continue;
+        }
+        ctx.globalAlpha = ft.life;
+        ctx.fillStyle = ft.color;
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.globalAlpha = 1;
+      }
+
+      rafId = requestAnimationFrame(loop);
+    }
+
+    pickNewOrder();
+    updateHUD();
+  </script>
+</body>
+</html>
